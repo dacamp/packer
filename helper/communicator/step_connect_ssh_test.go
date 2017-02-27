@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"sync"
 	"testing"
 )
 
@@ -15,6 +17,21 @@ func startAgent(t *testing.T) func() {
 		// ssh-agent is not always available, and the key
 		// types supported vary by platform.
 		t.Skip("skipping test due to -short or availability")
+	}
+
+	if runtime.GOOS == "windows" {
+		// only need to start pageant once
+		var once sync.Once
+		once.Do(func() {
+			pageant, err := exec.LookPath("pageant.exe")
+			if err != nil {
+				t.Skip("could not find ssh-agent")
+			}
+			pCmd := exec.Command(pageant)
+			if _, err := pCmd.Output(); err != nil {
+				t.Fatalf("cmd.Output: %v", err)
+			}
+		})
 	}
 
 	bin, err := exec.LookPath("ssh-agent")
